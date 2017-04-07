@@ -1,10 +1,4 @@
-
-
-
-
-#extracting data------------------------------------
-
-#load packages
+#load packages----------------------------------
 library(NLP)
 library(gmodels)
 library(tm)
@@ -14,7 +8,9 @@ library(SnowballC)
 library(XML)
 library(rvest)
 library(data.table)
+library(stringr)
 
+#potential word bank for later bot
 word_bank = c(
   "pay",
   "Pay",
@@ -27,36 +23,57 @@ word_bank = c(
   "salary",
   "start",
   "plans",
-  "New"
+  "New",
+  "promotion",
+  "Promotion",
+  "lyft",
+  "Lyft",
+  "gett"
 )
 
 
-#sweep through pages of parent page
-parent_thread = read_html("https://uberpeople.net/forums/NewYorkCity/")
-threads = html_nodes(parent_thread, ".PreviewTooltip")
+
+#prep fuel---------------------------------------------------------------
+
+#create parent page loop fuel
+page_numbers = 1:4
+parent_pages = paste0("page=", page_numbers[-1])
+
+#insert into loop to create big bank of threads
+forum_bank = rbindlist(
+  pblapply(parent_pages, function(x) {
+    forum_bank = setDT(data.frame(paste0("https://uberpeople.net/search/47509842/?",x,"&q=promotion&o=relevance&c[node]=51")))
+  }
+  )
+)
+
+#change title and add original first which has no "page=1"
+names(forum_bank) = c("links")
+forum_bank = rbind(data.frame(links = "https://uberpeople.net/search/47509842/?q=promotion&o=relevance&c[node]=51"),
+                   forum_bank)
+forum_bank[,links:=as.character(links)]
+forum_bank = as.data.frame(forum_bank)
 
 
-#finance version ---------------------------------------
-parent_thread = read_html("https://uberpeople.net/search/46301747/?q=income&o=relevance&c[node]=51")
-links = html_nodes(parent_thread, ".title a")
-#----------------------------------------
+#loop through each page in the forum_bank to create the threads list to search on
+threads = NA
+for (i in forum_bank[,1]) {
+  print(i)
+  parent_thread = read_html(i)
+  links = html_nodes(parent_thread, ".title a")
+  little_threads = data.frame(deals = html_text(links),
+                              correpsonding_link = html_attr(links, "href"))
+  
+  
+  type = html_text(html_nodes(parent_thread, ".contentType"))
+  
+  little_threads = cbind(little_threads, type)
+  threads = setDT(rbind(threads, little_threads))
+}
+threads = as.data.frame(na.omit(threads)[type == "Thread"])
 
 
-threads = data.frame(deals = html_text(links),
-                     correpsonding_link = html_attr(links, "href"))
-# threads = htmlParse(threads)
-#
-# html_attr(threads,"href")
-
-
-threads[1] %in% word_bank
-
-
-grepl("New", threads)
-
-threads[1, 2]
-
-
+#initiate collection------------------------------------------------------------------
 master_forum = NA
 threads$correpsonding_link = as.character(threads$correpsonding_link)
 for (i in threads[, 2]) {
@@ -87,7 +104,18 @@ for (i in threads[, 2]) {
     uber_write = html_nodes(uber_call, ".SelectQuoteContainer")
     uber_write = gsub("[^[:alnum:] ]", "", html_text(uber_write))
     uber_write = as.character(uber_write)
-    uber_master = cbind(uber_name, uber_write)
+    
+    #call in date
+    uber_date = html_text(html_nodes(uber_call, "#messageList .DateTime"))
+    #uber_date = gsub("[^[:alnum:] ]", "", html_text(uber_date))
+    #uber_date = str_sub(uber_date, -7,-18)
+    
+    #mesh
+    #print(uber_name)
+    #print(uber_date)
+    uber_master = cbind(uber_name, uber_write
+                        , uber_date[1:length(uber_name)]
+    )
     uber_master$page_num = paste(i)
     uber_master$threads = substr(site, 32, (nchar(site) - 14))
     uber_master$links = site
@@ -100,11 +128,9 @@ for (i in threads[, 2]) {
   #print(head(uber_forum))
   
   master_forum = setDT(rbind(master_forum, uber_forum))
-  
   #print(head(master_forum))
   
 }
-
 
 
 
@@ -112,6 +138,7 @@ for (i in threads[, 2]) {
 #n = nrow(master_forum)
 
 #eliminate all duplicate values
+names(master_forum) = c("uber_name","uber_write","uber_date", "page_num","threads","links")
 master_forum = master_forum[!duplicated(paste(uber_name, uber_write)),]
 master_forum[,tot_pop:= .N, by = .(uber_name)]
 
