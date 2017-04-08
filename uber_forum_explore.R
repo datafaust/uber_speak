@@ -9,6 +9,7 @@ library(XML)
 library(rvest)
 library(data.table)
 library(stringr)
+library(pbapply)
 
 #potential word bank for later bot
 word_bank = c(
@@ -145,29 +146,13 @@ master_forum[, pop_per_thread:= .N, by = .(uber_name, threads)]
 master_forum[,pop_per_thread:=sum(pop_per_thread), by = .(threads)]
 
 #lets turn all the letters in the character vectors into lowercase
-master_forum$uber_write = as.character(master_forum$uber_write)
+master_forum[,uber_write:= as.character(uber_write)]
 
 #remove any names referenced in comments
-master_forum$uber_write
-
-
-lapply(as.character(master_forum$uber_name), function(x){gsub(x, "", master_forum$uber_write)})
-
-a = paste(master_forum$uber_name, collapse = ",")
-cc <- paste(master_forum$uber_write, collapse = ",")
-for(i in seq_along(a)) cc <- gsub(a[i], "", cc, fixed = TRUE)
-
-
-lapply(1:nrow(master_forum), function(x) {
-  pattern = master_forum[x,1]
-  toclean = master_forum[x,2]
-  print(pattern)
-  print(toclean)
-  z = gsub(pattern, "", toclean)
-  print(z)
-})
-
-
+uber_names = master_forum$uber_name
+master_forum[, uber_write_filtered := gsub(
+  pattern = paste0("(", paste(uber_names, collapse = "|"), ")"),
+  replacement = "", uber_write)]
 
 #master_forum$uber_write2 = gsub("[^[:alnum:] ]", "", master_forum$uber_write)
 write.csv(master_forum, "uber_forum.csv")
