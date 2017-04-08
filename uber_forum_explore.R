@@ -162,7 +162,7 @@ str(master_forum)
 
 #subset just description
 master_forum = na.omit(master_forum)
-uber_n = master_forum[, c("threads", "uber_write")]
+uber_n = master_forum[, c("threads", "uber_write_filtered")]
 
 #check table for accuracy
 table(uber_n$threads)
