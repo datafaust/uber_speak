@@ -35,22 +35,28 @@ word_bank = c(
 
 
 #prep fuel---------------------------------------------------------------
+city = "losang"
+keyword = "insurance"
+master_link = "https://uberpeople.net/search/47582013/?q=insurance&o=relevance&c[node]=45"
+
+first = substr(master_link,1,40)
+last = substr(master_link,41,nchar(master_link))
 
 #create parent page loop fuel
-page_numbers = 1:4
+page_numbers = 1:5
 parent_pages = paste0("page=", page_numbers[-1])
 
 #insert into loop to create big bank of threads
 forum_bank = rbindlist(
   pblapply(parent_pages, function(x) {
-    forum_bank = setDT(data.frame(paste0("https://uberpeople.net/search/47509842/?",x,"&q=promotion&o=relevance&c[node]=51")))
+    forum_bank = setDT(data.frame(paste0(first,x,last)))
   }
   )
 )
 
 #change title and add original first which has no "page=1"
 names(forum_bank) = c("links")
-forum_bank = rbind(data.frame(links = "https://uberpeople.net/search/47509842/?q=promotion&o=relevance&c[node]=51"),
+forum_bank = rbind(data.frame(links = master_link),
                    forum_bank)
 forum_bank[,links:=as.character(links)]
 forum_bank = as.data.frame(forum_bank)
@@ -85,7 +91,7 @@ for (i in threads[, 2]) {
   #sweep through page
   library(XML)
   library(rvest)
-  page_numbers = 1:4
+  page_numbers = 1:5
   urls = paste(site,
                page_numbers,
                sep = "page-")
@@ -102,7 +108,7 @@ for (i in threads[, 2]) {
     uber_name = as.data.frame(uber_name)
     
     #call in text
-    uber_write = html_nodes(uber_call, ".messageContent")
+    uber_write = html_nodes(uber_call, ".SelectQuoteContainer")
     uber_write = gsub("[^[:alnum:] ]", "", html_text(uber_write))
     uber_write = as.character(uber_write)
     
@@ -133,9 +139,6 @@ for (i in threads[, 2]) {
   
 }
 
-
-
-#PREP CORPUS AND CLEAN------------------------------------------------------------------------
 #n = nrow(master_forum)
 
 #eliminate all duplicate values
@@ -148,24 +151,34 @@ master_forum[,pop_per_thread:=sum(pop_per_thread), by = .(threads)]
 #lets turn all the letters in the character vectors into lowercase
 master_forum[,uber_write:= as.character(uber_write)]
 
+#clean some of the language
+master_forum[,uber_write_filtered:=gsub("Click to expand", " ", uber_write)]
+master_forum = na.omit(master_forum)
+
+#subset just description
+master_forum = na.omit(master_forum)
+
+#write out to qualitative explore
+uber_n = master_forum[, c("uber_name","uber_date","page_num","threads"
+                          , "uber_write_filtered"
+)] #for wwrite out
+write.csv(uber_n, paste0(city,"_forum_transcript",keyword,".csv"), row.names = F)
+
+
+
+#PREP CORPUS AND CLEAN------------------------------------------------------------------------
+
 #remove any names referenced in comments and some common imports from this forim
 uber_names = master_forum$uber_name
 master_forum[, uber_write_filtered := gsub(
   pattern = paste0("(", paste(uber_names, collapse = "|"), ")"),
-  replacement = "", uber_write)][
-    ,uber_write_filtered:=gsub("Click to expand|said", " "
-                               , uber_write_filtered)]
+  replacement = "", uber_write_filtered)]
 
-#master_forum$uber_write2 = gsub("[^[:alnum:] ]", "", master_forum$uber_write)
-write.csv(master_forum, "uber_forum.csv")
 
 #master_forum$uber_write = grepl('"\n\t\t\t\t\t\n\n\t\t\t\t\t\n\"',"", master_forum$uber_write)
 str(master_forum)
 
-#subset just description
-master_forum = na.omit(master_forum)
 uber_n = master_forum[, c("threads", "uber_write_filtered")]
-uber_n = master_forum[, c("uber_name","uber_date","threads", "uber_write_filtered")]
 
 
 #check table for accuracy
