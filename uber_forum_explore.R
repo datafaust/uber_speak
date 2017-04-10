@@ -102,7 +102,7 @@ for (i in threads[, 2]) {
     uber_name = as.data.frame(uber_name)
     
     #call in text
-    uber_write = html_nodes(uber_call, ".SelectQuoteContainer")
+    uber_write = html_nodes(uber_call, ".messageContent")
     uber_write = gsub("[^[:alnum:] ]", "", html_text(uber_write))
     uber_write = as.character(uber_write)
     
@@ -148,11 +148,13 @@ master_forum[,pop_per_thread:=sum(pop_per_thread), by = .(threads)]
 #lets turn all the letters in the character vectors into lowercase
 master_forum[,uber_write:= as.character(uber_write)]
 
-#remove any names referenced in comments
+#remove any names referenced in comments and some common imports from this forim
 uber_names = master_forum$uber_name
 master_forum[, uber_write_filtered := gsub(
   pattern = paste0("(", paste(uber_names, collapse = "|"), ")"),
-  replacement = "", uber_write)]
+  replacement = "", uber_write)][
+    ,uber_write_filtered:=gsub("Click to expand|said", " "
+                               , uber_write_filtered)]
 
 #master_forum$uber_write2 = gsub("[^[:alnum:] ]", "", master_forum$uber_write)
 write.csv(master_forum, "uber_forum.csv")
@@ -163,6 +165,8 @@ str(master_forum)
 #subset just description
 master_forum = na.omit(master_forum)
 uber_n = master_forum[, c("threads", "uber_write_filtered")]
+uber_n = master_forum[, c("uber_name","uber_date","threads", "uber_write_filtered")]
+
 
 #check table for accuracy
 table(uber_n$threads)
