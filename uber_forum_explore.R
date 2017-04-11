@@ -35,9 +35,9 @@ word_bank = c(
 
 
 #prep fuel---------------------------------------------------------------
-city = "losang"
-keyword = "insurance"
-master_link = "https://uberpeople.net/search/47582013/?q=insurance&o=relevance&c[node]=45"
+city = "nyc"
+keyword = "income"
+master_link = "https://uberpeople.net/search/47591878/?q=income&o=relevance&c[node]=51"
 
 first = substr(master_link,1,40)
 last = substr(master_link,41,nchar(master_link))
@@ -162,7 +162,7 @@ master_forum = na.omit(master_forum)
 uber_n = master_forum[, c("uber_name","uber_date","page_num","threads"
                           , "uber_write_filtered"
 )] #for wwrite out
-write.csv(uber_n, paste0(city,"_forum_transcript",keyword,".csv"), row.names = F)
+write.csv(uber_n, paste0(city,"_forum_transcript","_",,keyword,".csv"), row.names = F)
 
 
 
